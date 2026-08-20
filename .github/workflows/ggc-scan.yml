@@ -1,0 +1,42 @@
+# Положи этот файл в .github/workflows/ggc-scan.yml в корне репозитория
+
+name: GGC domain scan
+
+on:
+  schedule:
+    # раз в 12 часов; не делай чаще без необходимости — щадим публичные резолверы
+    - cron: "0 */12 * * *"
+  workflow_dispatch: {}   # позволяет запускать вручную из вкладки Actions
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install dnspython
+
+      - name: Run scan
+        run: python3 find_ggc_domains.py --max-num 40
+
+      - name: Commit and push if hosts.txt changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- hosts.txt; then
+            git add hosts.txt
+            git commit -m "ggc-scan: добавлены новые найденные домены"
+            git push
+          else
+            echo "Изменений нет, коммит не нужен."
+          fi
